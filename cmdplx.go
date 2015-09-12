@@ -78,11 +78,11 @@ func (plx *Cmdplx) Exit() chan *Status { return plx.exit }
 
 // Start all the commands and wait them to finish.
 //
-// stdout and stderr are sent to the lines channel.
-// exit status is sent to the exit channel. if a command failed to start
+// Stdout and stderr are sent to the lines channel.
+// Exit status is sent to the exit channel. If a command failed to start,
 // its error will also be sent to the exit channel.
-// when all the outputs are received and commands are finished
-// the done channel will be closed
+// When all the outputs are received and commands are finished
+// the done channel will be closed.
 func (plx *Cmdplx) Start() {
         for _, c := range plx.cmds {
                 if err := plx.start(c); err != nil {
