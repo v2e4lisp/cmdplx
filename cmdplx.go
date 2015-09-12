@@ -74,7 +74,7 @@ func New(cmds []*exec.Cmd) *Cmdplx {
 // Outputs from commands' stderr and stdout will be
 // sent to this channel line by line.
 //
-// The line channel is not closed by cmdplx.
+// The line channel will not get closed by cmdplx.
 func (plx *Cmdplx) Lines() chan *Line { return plx.lines }
 
 // Return the done channel.
@@ -85,8 +85,11 @@ func (plx *Cmdplx) Done() chan struct{} { return plx.done }
 
 // Return the exit channel.
 //
+// Exit channel is a bufferd channel being able to hold all the commands status.
 // If a command failed to start or exited, its status will be passed
 // to this channel.
+//
+// Exit channel will not get closed by cmdplx.
 func (plx *Cmdplx) Exit() chan *Status { return plx.exit }
 
 // Start all the commands and wait the commands to finish in a goroutine.
@@ -95,7 +98,7 @@ func (plx *Cmdplx) Exit() chan *Status { return plx.exit }
 // Exit status is sent to the exit channel. If a command failed to start,
 // its error will also be sent to the exit channel.
 // When all the outputs are received and commands are finished
-// the done channel will be closed.
+// the done channel will get closed.
 func (plx *Cmdplx) Start() {
         for _, c := range plx.cmds {
                 if err := plx.start(c); err != nil {
