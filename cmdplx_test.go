@@ -7,7 +7,7 @@ import (
         "github.com/v2e4lisp/cmdplx"
 )
 
-func TestStart0(t *testing.T) {
+func TestStart(t *testing.T) {
         cmds := []*exec.Cmd{
                 exec.Command("sh", "-c", "echo hello 1>&2"),
                 exec.Command("sh", "-c", "echo world"),

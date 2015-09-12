@@ -23,16 +23,16 @@ type Line struct {
         from int    // from stdout or stderr
 }
 
-// get the current command
+// Get the current command
 func (l *Line) Cmd() *exec.Cmd { return l.cmd }
 
-// get the error occured in reading from stdout or stderr
+// Get the error occured in reading from stdout or stderr
 func (l *Line) Err() error { return l.err }
 
-// get the current line text
+// Get the current line text
 func (l *Line) Text() string { return l.text }
 
-// the line is from stderr or stdout
+// Check to see the current line is from Stderr or Stdout
 func (l *Line) From() int { return l.from }
 
 type Status struct {
@@ -40,13 +40,14 @@ type Status struct {
         err error     // exit error
 }
 
-// get the current command
+// Get the current command
 func (s *Status) Cmd() *exec.Cmd { return s.cmd }
 
-// get the command exit status
+// Return the command exit status if the command.Start() successfully.
+// Otherwise return the command starting error.
 func (s *Status) Err() error { return s.err }
 
-// multiplex multiple commands' stdout and stderr
+// Multiplex multiple commands' stdout and stderr.
 type Cmdplx struct {
         cmds  []*exec.Cmd   // commands to run
         lines chan *Line    // channel to receive commands' output line by line
@@ -67,16 +68,28 @@ func New(cmds []*exec.Cmd) *Cmdplx {
         return plx
 }
 
-// return the lines channel
+// Return the lines channel.
+//
+// Lines channel is a nonbuffered channel.
+// Outputs from commands' stderr and stdout will be
+// sent to this channel line by line.
+//
+// The line channel is not closed by cmdplx.
 func (plx *Cmdplx) Lines() chan *Line { return plx.lines }
 
-// return the done channel
+// Return the done channel.
+//
+// The done channel will get closed when all the commands are finished
+// and all of their output are received via the line channel.
 func (plx *Cmdplx) Done() chan struct{} { return plx.done }
 
-// return the exit channel
+// Return the exit channel.
+//
+// If a command failed to start or exited, its status will be passed
+// to this channel.
 func (plx *Cmdplx) Exit() chan *Status { return plx.exit }
 
-// Start all the commands and wait them to finish.
+// Start all the commands and wait the commands to finish in a goroutine.
 //
 // Stdout and stderr are sent to the lines channel.
 // Exit status is sent to the exit channel. If a command failed to start,
@@ -111,7 +124,6 @@ func (plx *Cmdplx) Start() {
 }
 
 // Start a command, send its output to lines channel
-// and wait the command to finish
 func (plx *Cmdplx) start(c *exec.Cmd) error {
         stdout, err := c.StdoutPipe()
         if err != nil {
