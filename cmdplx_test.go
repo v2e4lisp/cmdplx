@@ -1,8 +1,10 @@
-package cmdplx
+package cmdplx_test
 
 import (
         "os/exec"
         "testing"
+
+        "github.com/v2e4lisp/cmdplx"
 )
 
 func TestStart0(t *testing.T) {
@@ -12,12 +14,12 @@ func TestStart0(t *testing.T) {
                 exec.Command("nosuchcommand"),
                 exec.Command("sh", "-c", "exit 1"),
         }
-        plx := NewCmdplx(cmds)
+        plx := cmdplx.New(cmds)
         plx.Start()
 
         var (
-                exitError       *Status
-                commandNotFound *Status
+                exitError       *cmdplx.Status
+                commandNotFound *cmdplx.Status
         )
 
         for {

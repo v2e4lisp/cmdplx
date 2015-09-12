@@ -56,7 +56,7 @@ type Cmdplx struct {
 }
 
 // Create new Cmdplx
-func NewCmdplx(cmds []*exec.Cmd) *Cmdplx {
+func New(cmds []*exec.Cmd) *Cmdplx {
         plx := &Cmdplx{cmds: cmds}
         plx.lines = make(chan *Line)
         plx.done = make(chan struct{})

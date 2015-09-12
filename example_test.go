@@ -1,9 +1,11 @@
-package cmdplx
+package cmdplx_test
 
 import (
         "fmt"
         "io"
         "os/exec"
+
+        "github.com/v2e4lisp/cmdplx"
 )
 
 func ExampleStart() {
@@ -13,7 +15,7 @@ func ExampleStart() {
                 exec.Command("sh", "-c", "echo hello stderr 1>&2"),
                 exec.Command("sh", "-c", "echo hello stdout"),
         }
-        plx := NewCmdplx(cmds)
+        plx := cmdplx.New(cmds)
         plx.Start()
 
         for {
