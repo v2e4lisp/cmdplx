@@ -100,7 +100,7 @@ func (plx *Cmdplx) Started() chan *Status { return plx.started }
 //
 // Stdout and stderr are sent to the lines channel.
 // Exit status is sent to the exited channel. If a command failed to start,
-// its error will also be sent to the exited channel.
+// its error will be sent to the start channel.
 // When all the outputs are received and commands are finished
 // the done channel will get closed.
 func (plx *Cmdplx) Start() {
