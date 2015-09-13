@@ -35,13 +35,13 @@ func TestStart(t *testing.T) {
                                         t.Errorf("expect 'hello', got %s", text)
                                 }
                         }
-                case status := <-plx.Exit():
+                case status := <-plx.Started():
                         if err := status.Err(); err != nil {
-                                if _, ok := err.(*exec.ExitError); ok {
-                                        exitError = status
-                                } else {
-                                        commandNotFound = status
-                                }
+                                commandNotFound = status
+                        }
+                case status := <-plx.Exited():
+                        if err := status.Err(); err != nil {
+                                exitError = status
                         }
                 case <-plx.Done():
                         goto DONE

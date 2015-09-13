@@ -30,7 +30,11 @@ func Example() {
                         from := line.From()
                         text := line.Text()
                         output[from-1] = text
-                case status := <-plx.Exit():
+                case status := <-plx.Started():
+                        if err := status.Err(); err != nil {
+                                fmt.Println(err)
+                        }
+                case status := <-plx.Exited():
                         if err := status.Err(); err != nil {
                                 fmt.Println(err)
                         }
