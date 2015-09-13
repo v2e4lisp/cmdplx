@@ -43,8 +43,7 @@ type Status struct {
 // Get the current command
 func (s *Status) Cmd() *exec.Cmd { return s.cmd }
 
-// Return the command exit status if the command.Start() successfully.
-// Otherwise return the command starting error.
+// Get the error
 func (s *Status) Err() error { return s.err }
 
 // Multiplex multiple commands' stdout and stderr.
