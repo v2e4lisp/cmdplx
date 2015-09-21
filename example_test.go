@@ -12,8 +12,8 @@ func Example() {
         var output [2]string
 
         cmds := []*exec.Cmd{
-                exec.Command("sh", "-c", "echo hello stderr 1>&2"),
-                exec.Command("sh", "-c", "echo hello stdout"),
+                exec.Command("sh", "-c", "echo stderr 1>&2"),
+                exec.Command("sh", "-c", "echo stdout"),
         }
         plx := cmdplx.New(cmds)
         plx.Start()
@@ -30,10 +30,7 @@ func Example() {
                                 }
                                 break
                         }
-
-                        from := line.From()
-                        text := line.Text()
-                        output[from-1] = text
+                        output[line.From()-1] = line.Text()
                 case status := <-plx.Started():
                         if err := status.Err(); err != nil {
                                 fmt.Println(err)
@@ -45,10 +42,7 @@ func Example() {
                 }
         }
 DONE:
-        for _, line := range output {
-                fmt.Println(line)
-        }
+        fmt.Println(output)
         // Output:
-        // hello stdout
-        // hello stderr
+        // [stdout stderr]
 }

@@ -48,10 +48,10 @@ func (s *Status) Err() error { return s.err }
 
 // Multiplex multiple commands' stdout and stderr.
 type Cmdplx struct {
-        cmds    []*exec.Cmd   // commands to run
-        lines   chan *Line    // channel to receive commands' output line by line
-        exited  chan *Status  // channel to receive commands' Wait() error
-        started chan *Status  // channel to receive commands' Start() error
+        cmds    []*exec.Cmd  // commands to run
+        lines   chan *Line   // channel to receive commands' output line by line
+        exited  chan *Status // channel to receive commands' Wait() error
+        started chan *Status // channel to receive commands' Start() error
         wg      *sync.WaitGroup
 }
 
@@ -74,7 +74,7 @@ func New(cmds []*exec.Cmd) *Cmdplx {
 // sent to this channel line by line.
 //
 // The line channel will not get closed by cmdplx.
-func (plx *Cmdplx) Lines() chan *Line { return plx.lines }
+func (plx *Cmdplx) Lines() <-chan *Line { return plx.lines }
 
 // Return the exited channel.
 //
