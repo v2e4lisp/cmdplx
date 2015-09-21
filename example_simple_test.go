@@ -8,7 +8,7 @@ import (
         "github.com/v2e4lisp/cmdplx"
 )
 
-func ExampleSimple() {
+func Example_simple() {
         var output [2]string
 
         plx := cmdplx.New([]*exec.Cmd{
