@@ -50,7 +50,6 @@ func (s *Status) Err() error { return s.err }
 type Cmdplx struct {
         cmds    []*exec.Cmd   // commands to run
         lines   chan *Line    // channel to receive commands' output line by line
-        done    chan struct{} // channel to inform all the commands are finished and all the outputs are received
         exited  chan *Status  // channel to receive commands' Wait() error
         started chan *Status  // channel to receive commands' Start() error
         wg      *sync.WaitGroup
@@ -60,7 +59,6 @@ type Cmdplx struct {
 func New(cmds []*exec.Cmd) *Cmdplx {
         plx := &Cmdplx{cmds: cmds}
         plx.lines = make(chan *Line)
-        plx.done = make(chan struct{})
         plx.wg = &sync.WaitGroup{}
         count := len(plx.cmds)
         plx.exited = make(chan *Status, count)
@@ -78,12 +76,6 @@ func New(cmds []*exec.Cmd) *Cmdplx {
 // The line channel will not get closed by cmdplx.
 func (plx *Cmdplx) Lines() chan *Line { return plx.lines }
 
-// Return the done channel.
-//
-// The done channel will get closed when all the commands are finished
-// and all of their output are received via the line channel.
-func (plx *Cmdplx) Done() chan struct{} { return plx.done }
-
 // Return the exited channel.
 //
 // Exit channel is a bufferd channel holding all the commands Wait() error.
@@ -99,10 +91,10 @@ func (plx *Cmdplx) Started() chan *Status { return plx.started }
 // Start all the commands and wait the commands to finish in a goroutine.
 //
 // Stdout and stderr are sent to the lines channel.
-// Exit status is sent to the exited channel. If a command failed to start,
-// its error will be sent to the start channel.
+// Exit status is sent to the exited channel.
+// cmd.Start() return value will be sent to the start channel.
 // When all the outputs are received and commands are finished
-// the done channel will get closed.
+// the lines channel will get closed.
 func (plx *Cmdplx) Start() {
         for _, c := range plx.cmds {
                 err := plx.start(c)
@@ -127,7 +119,7 @@ func (plx *Cmdplx) Start() {
 
         go func() {
                 plx.wg.Wait()
-                close(plx.done)
+                close(plx.lines)
         }()
 }
 

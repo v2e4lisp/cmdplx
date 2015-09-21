@@ -20,13 +20,17 @@ func Example() {
 
         for {
                 select {
-                case line := <-plx.Lines():
+                case line, ok := <-plx.Lines():
+                        if !ok {
+                                goto DONE
+                        }
                         if err := line.Err(); err != nil {
                                 if err != io.EOF {
                                         fmt.Println(err)
                                 }
                                 break
                         }
+
                         from := line.From()
                         text := line.Text()
                         output[from-1] = text
@@ -38,8 +42,6 @@ func Example() {
                         if err := status.Err(); err != nil {
                                 fmt.Println(err)
                         }
-                case <-plx.Done():
-                        goto DONE
                 }
         }
 DONE:

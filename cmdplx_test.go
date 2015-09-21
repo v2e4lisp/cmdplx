@@ -24,7 +24,10 @@ func TestStart(t *testing.T) {
 
         for {
                 select {
-                case line := <-plx.Lines():
+                case line, ok := <-plx.Lines():
+                        if !ok {
+                                goto DONE
+                        }
                         if line.From() == 1 {
                                 if text := line.Text(); text != "world" {
                                         t.Errorf("expect 'world', got %s", text)
@@ -43,8 +46,6 @@ func TestStart(t *testing.T) {
                         if err := status.Err(); err != nil {
                                 exitError = status
                         }
-                case <-plx.Done():
-                        goto DONE
                 }
         }
 DONE:
