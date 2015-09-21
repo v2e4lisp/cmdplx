@@ -18,13 +18,9 @@ func Example_simple() {
         plx.Start()
 
         for line := range plx.Lines() {
-                if err := line.Err(); err != nil {
-                        if err != io.EOF {
-                                fmt.Println(err)
-                        }
-                        continue
+                if err := line.Err(); err == nil {
+                        output[line.From()-1] = line.Text()
                 }
-                output[line.From()-1] = line.Text()
         }
 
         fmt.Println(output)
