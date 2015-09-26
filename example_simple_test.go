@@ -2,7 +2,6 @@ package cmdplx_test
 
 import (
         "fmt"
-        "io"
         "os/exec"
 
         "github.com/v2e4lisp/cmdplx"
@@ -15,9 +14,9 @@ func Example_simple() {
                 exec.Command("sh", "-c", "echo stderr 1>&2"),
                 exec.Command("sh", "-c", "echo stdout"),
         })
-        plx.Start()
+        lines, _, _ := plx.Start()
 
-        for line := range plx.Lines() {
+        for line := range lines {
                 if err := line.Err(); err == nil {
                         output[line.From()-1] = line.Text()
                 }

@@ -73,29 +73,35 @@ func New(cmds []*exec.Cmd) *Cmdplx {
 // Outputs from commands' stderr and stdout will be
 // sent to this channel line by line.
 //
-// The line channel will not get closed by cmdplx.
+// When all the outputs are received and commands are finished
+// the lines channel will get closed.
 func (plx *Cmdplx) Lines() <-chan *Line { return plx.lines }
 
 // Return the exited channel.
 //
 // Exit channel is a bufferd channel holding all the commands Wait() error.
-// Exit channel will not get closed by cmdplx.
-func (plx *Cmdplx) Exited() chan *Status { return plx.exited }
+//
+// When all the outputs are received and commands are finished
+// the exited channel will get closed.
+func (plx *Cmdplx) Exited() <-chan *Status { return plx.exited }
 
 // Return the started channel
 //
 // Start channel is a buffered channel holding all the commands Start() error.
-// Start channel will not get closed by cmdplx.
-func (plx *Cmdplx) Started() chan *Status { return plx.started }
+//
+// When all the outputs are received and commands are finished
+// the started channel will get closed.
+func (plx *Cmdplx) Started() <-chan *Status { return plx.started }
 
 // Start all the commands and wait the commands to finish in a goroutine.
 //
 // Stdout and stderr are sent to the lines channel.
 // Exit status is sent to the exited channel.
 // cmd.Start() return value will be sent to the start channel.
-// When all the outputs are received and commands are finished
-// the lines channel will get closed.
-func (plx *Cmdplx) Start() {
+func (plx *Cmdplx) Start() (
+        lines <-chan *Line,
+        started <-chan *Status,
+        exited <-chan *Status) {
         for _, c := range plx.cmds {
                 err := plx.start(c)
                 plx.started <- &Status{
@@ -106,8 +112,8 @@ func (plx *Cmdplx) Start() {
                         continue
                 }
 
+                plx.wg.Add(1)
                 go func(c *exec.Cmd) {
-                        plx.wg.Add(1)
                         defer plx.wg.Done()
                         err := c.Wait()
                         plx.exited <- &Status{
@@ -120,7 +126,11 @@ func (plx *Cmdplx) Start() {
         go func() {
                 plx.wg.Wait()
                 close(plx.lines)
+                close(plx.started)
+                close(plx.exited)
         }()
+
+        return plx.lines, plx.started, plx.exited
 }
 
 // Start a command, send its output to lines channel
@@ -160,8 +170,8 @@ func (plx *Cmdplx) start(c *exec.Cmd) error {
                 close(errDone)
         }()
 
+        plx.wg.Add(1)
         go func() {
-                plx.wg.Add(1)
                 defer plx.wg.Done()
                 <-outDone
                 <-errDone

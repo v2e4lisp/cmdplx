@@ -24,8 +24,8 @@ func TestStart(t *testing.T) {
 
         for {
                 select {
-                case line, ok := <-plx.Lines():
-                        if !ok {
+                case line := <-plx.Lines():
+                        if line == nil {
                                 goto DONE
                         }
                         if line.From() == 1 {
@@ -39,10 +39,16 @@ func TestStart(t *testing.T) {
                                 }
                         }
                 case status := <-plx.Started():
+                        if status == nil {
+                                goto DONE
+                        }
                         if err := status.Err(); err != nil {
                                 commandNotFound = status
                         }
                 case status := <-plx.Exited():
+                        if status == nil {
+                                goto DONE
+                        }
                         if err := status.Err(); err != nil {
                                 exitError = status
                         }
