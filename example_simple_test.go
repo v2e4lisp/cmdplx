@@ -9,12 +9,10 @@ import (
 
 func Example_simple() {
         var output [2]string
-
-        plx := cmdplx.New([]*exec.Cmd{
+        lines, _, _ := cmdplx.Start([]*exec.Cmd{
                 exec.Command("sh", "-c", "echo stderr 1>&2"),
                 exec.Command("sh", "-c", "echo stdout"),
         })
-        lines, _, _ := plx.Start()
 
         for line := range lines {
                 if err := line.Err(); err == nil {

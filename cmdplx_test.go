@@ -14,9 +14,8 @@ func TestStart(t *testing.T) {
                 exec.Command("nosuchcommand"),
                 exec.Command("sh", "-c", "exit 1"),
         }
-        plx := cmdplx.New(cmds)
-        plx.Start()
-
+        lines, started, exited := cmdplx.Start(cmds)
+        closed := 0
         var (
                 exitError       *cmdplx.Status
                 commandNotFound *cmdplx.Status
@@ -24,9 +23,13 @@ func TestStart(t *testing.T) {
 
         for {
                 select {
-                case line := <-plx.Lines():
+                case line := <-lines:
                         if line == nil {
-                                goto DONE
+                                lines = nil
+                                if closed++; closed == 3 {
+                                        goto DONE
+                                }
+                                break
                         }
                         if line.From() == 1 {
                                 if text := line.Text(); text != "world" {
@@ -38,16 +41,24 @@ func TestStart(t *testing.T) {
                                         t.Errorf("expect 'hello', got %s", text)
                                 }
                         }
-                case status := <-plx.Started():
+                case status := <-started:
                         if status == nil {
-                                goto DONE
+                                started = nil
+                                if closed++; closed == 3 {
+                                        goto DONE
+                                }
+                                break
                         }
                         if err := status.Err(); err != nil {
                                 commandNotFound = status
                         }
-                case status := <-plx.Exited():
+                case status := <-exited:
                         if status == nil {
-                                goto DONE
+                                exited = nil
+                                if closed++; closed == 3 {
+                                        goto DONE
+                                }
+                                break
                         }
                         if err := status.Err(); err != nil {
                                 exitError = status

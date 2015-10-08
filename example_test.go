@@ -15,14 +15,18 @@ func Example() {
                 exec.Command("sh", "-c", "echo stderr 1>&2"),
                 exec.Command("sh", "-c", "echo stdout"),
         }
-        plx := cmdplx.New(cmds)
-        plx.Start()
+        closed := 0
+        lines, started, exited := cmdplx.Start(cmds)
 
         for {
                 select {
-                case line := <-plx.Lines():
+                case line := <-lines:
                         if line == nil {
-                                goto DONE
+                                lines = nil
+                                if closed++; closed == 3 {
+                                        goto DONE
+                                }
+                                break
                         }
                         if err := line.Err(); err != nil {
                                 if err != io.EOF {
@@ -31,16 +35,24 @@ func Example() {
                                 break
                         }
                         output[line.From()-1] = line.Text()
-                case status := <-plx.Started():
+                case status := <-started:
                         if status == nil {
-                                goto DONE
+                                started = nil
+                                if closed++; closed == 3 {
+                                        goto DONE
+                                }
+                                break
                         }
                         if err := status.Err(); err != nil {
                                 fmt.Println(err)
                         }
-                case status := <-plx.Exited():
+                case status := <-exited:
                         if status == nil {
-                                goto DONE
+                                exited = nil
+                                if closed++; closed == 3 {
+                                        goto DONE
+                                }
+                                break
                         }
                         if err := status.Err(); err != nil {
                                 fmt.Println(err)

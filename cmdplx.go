@@ -16,8 +16,6 @@ type Line struct {
         cmd *exec.Cmd // from which command
         // Error when reading from the command's output.
         // If error exists, Text and From are left unset
-        // Err will be set to io.EOF if stdout and stderr
-        // both received io.EOF
         err  error
         text string // line content
         from int    // from stdout or stderr
@@ -47,7 +45,7 @@ func (s *Status) Cmd() *exec.Cmd { return s.cmd }
 func (s *Status) Err() error { return s.err }
 
 // Multiplex multiple commands' stdout and stderr.
-type Cmdplx struct {
+type multiplexer struct {
         cmds    []*exec.Cmd  // commands to run
         lines   chan *Line   // channel to receive commands' output line by line
         exited  chan *Status // channel to receive commands' Wait() error
@@ -55,9 +53,25 @@ type Cmdplx struct {
         wg      *sync.WaitGroup
 }
 
-// Create new Cmdplx
-func New(cmds []*exec.Cmd) *Cmdplx {
-        plx := &Cmdplx{cmds: cmds}
+// Start all the commands
+//
+// Stdout and stderr will be scanned line by line and the result will be
+// sent to the lines channel(unbuffered).
+// Start status is sent to the started channel.
+// Exit status is sent to the exited channel.
+// Started and exited channel are buffered channels with the same the size of the input commands
+func Start(cmds []*exec.Cmd) (
+        lines <-chan *Line,
+        started <-chan *Status,
+        exited <-chan *Status) {
+
+        lines, started, exited = newMultiplexer(cmds).startAll()
+        return
+}
+
+// Create new multiplexer
+func newMultiplexer(cmds []*exec.Cmd) *multiplexer {
+        plx := &multiplexer{cmds: cmds}
         plx.lines = make(chan *Line)
         plx.wg = &sync.WaitGroup{}
         count := len(plx.cmds)
@@ -67,60 +81,13 @@ func New(cmds []*exec.Cmd) *Cmdplx {
         return plx
 }
 
-// Return the lines channel.
-//
-// Lines channel is a nonbuffered channel.
-// Outputs from commands' stderr and stdout will be
-// sent to this channel line by line.
-//
-// When all the outputs are received and commands are finished
-// the lines channel will get closed.
-func (plx *Cmdplx) Lines() <-chan *Line { return plx.lines }
-
-// Return the exited channel.
-//
-// Exit channel is a bufferd channel holding all the commands Wait() error.
-//
-// When all the outputs are received and commands are finished
-// the exited channel will get closed.
-func (plx *Cmdplx) Exited() <-chan *Status { return plx.exited }
-
-// Return the started channel
-//
-// Start channel is a buffered channel holding all the commands Start() error.
-//
-// When all the outputs are received and commands are finished
-// the started channel will get closed.
-func (plx *Cmdplx) Started() <-chan *Status { return plx.started }
-
-// Start all the commands and wait the commands to finish in a goroutine.
-//
-// Stdout and stderr are sent to the lines channel.
-// Exit status is sent to the exited channel.
-// cmd.Start() return value will be sent to the start channel.
-func (plx *Cmdplx) Start() (
+func (plx *multiplexer) startAll() (
         lines <-chan *Line,
         started <-chan *Status,
         exited <-chan *Status) {
         for _, c := range plx.cmds {
-                err := plx.start(c)
-                plx.started <- &Status{
-                        cmd: c,
-                        err: err,
-                }
-                if err != nil {
-                        continue
-                }
-
                 plx.wg.Add(1)
-                go func(c *exec.Cmd) {
-                        defer plx.wg.Done()
-                        err := c.Wait()
-                        plx.exited <- &Status{
-                                cmd: c,
-                                err: err,
-                        }
-                }(c)
+                go plx.start(c)
         }
 
         go func() {
@@ -133,23 +100,38 @@ func (plx *Cmdplx) Start() (
         return plx.lines, plx.started, plx.exited
 }
 
-// Start a command, send its output to lines channel
-func (plx *Cmdplx) start(c *exec.Cmd) error {
-        stdout, err := c.StdoutPipe()
-        if err != nil {
-                return err
+// Run a command.
+// Start status is sent to started channel and exit status is sent exited channel.
+// Stdout and stderr will be scanned line by line and sent to lines lines channel.
+func (plx *multiplexer) start(c *exec.Cmd) {
+        defer plx.wg.Done()
+        var (
+                stdout io.ReadCloser
+                stderr io.ReadCloser
+        )
+        status := &Status{
+                cmd: c,
+                err: nil,
         }
-        stderr, err := c.StderrPipe()
-        if err != nil {
-                return err
+
+        if stdout, status.err = c.StdoutPipe(); status.err != nil {
+                plx.started <- status
+                return
         }
-        if err := c.Start(); err != nil {
-                return err
+        if stderr, status.err = c.StderrPipe(); status.err != nil {
+                plx.started <- status
+                return
+        }
+        if status.err = c.Start(); status.err != nil {
+                plx.started <- status
+                return
         }
 
         outScan, errScan := bufio.NewScanner(stdout), bufio.NewScanner(stderr)
-        outDone, errDone := make(chan struct{}), make(chan struct{})
+        var wg sync.WaitGroup
+        wg.Add(2)
         go func() {
+                defer wg.Done()
                 for outScan.Scan() {
                         plx.lines <- &Line{
                                 cmd:  c,
@@ -157,9 +139,15 @@ func (plx *Cmdplx) start(c *exec.Cmd) error {
                                 from: Stdout,
                         }
                 }
-                close(outDone)
+                if err := errScan.Err(); err != nil {
+                        plx.lines <- &Line{
+                                cmd: c,
+                                err: err,
+                        }
+                }
         }()
         go func() {
+                defer wg.Done()
                 for errScan.Scan() {
                         plx.lines <- &Line{
                                 cmd:  c,
@@ -167,26 +155,17 @@ func (plx *Cmdplx) start(c *exec.Cmd) error {
                                 from: Stderr,
                         }
                 }
-                close(errDone)
-        }()
-
-        plx.wg.Add(1)
-        go func() {
-                defer plx.wg.Done()
-                <-outDone
-                <-errDone
-                err := outScan.Err()
-                if err == nil {
-                        err = errScan.Err()
-                }
-                if err == nil {
-                        err = io.EOF
-                }
-                plx.lines <- &Line{
-                        cmd: c,
-                        err: err,
+                if err := outScan.Err(); err != nil {
+                        plx.lines <- &Line{
+                                cmd: c,
+                                err: err,
+                        }
                 }
         }()
-
-        return nil
+        wg.Wait()
+        err := c.Wait()
+        plx.exited <- &Status{
+                cmd: c,
+                err: err,
+        }
 }
