@@ -60,6 +60,8 @@ type multiplexer struct {
 // Start status is sent to the started channel.
 // Exit status is sent to the exited channel.
 // Started and exited channel are buffered channels with the same the size of the input commands
+//
+// The returning channels will all get CLOSED when commands are finished
 func Start(cmds []*exec.Cmd) (
         lines <-chan *Line,
         started <-chan *Status,
